@@ -1,0 +1,47 @@
+---
+title: Iteration over vertices
+author: "Michał Bojanowski"
+date: `r Sys.Date()`
+---
+
+http://stackoverflow.com/questions/33175576/fast-way-to-iterate-over-vertices-and-compute-new-attributes-based-on-that-of-ne/33346515#33346515
+
+
+```{r}
+library(microbenchmark)
+library(data.table)
+library(igraph)
+library(knitr)
+set.seed <- 42
+g <- sample_gnp(10000, 0.1)
+V(g)$name <- seq_len(gorder(g)) # add a name attribute for data.table merge
+V(g)$attr <- rnorm(gorder(g))
+V(g)$mean <- 0 # "mean" is the attribute I want to compute
+gg <- g
+render_markdown(strict = TRUE)
+```
+
+Two methods
+
+```{r}
+e1 <- expression({
+  al <- as_adj_list(gg)
+  attr <- V(gg)$attr
+  V(gg)$mean <- sapply(al, function(x) mean(attr[x]))  
+})
+
+e2 <- expression({
+  gdt.v <- as_data_frame(g, what = "vertices") %>% setDT() # output the vertices
+  gdt.e <- as_data_frame(g, what = "edges") %>% setDT() # output the edges
+  gdt <- gdt.e[gdt.v, on = c(to = "name"), nomatch = 0] # merge vertices and edges data.table
+  mean <- gdt[, .(mean = mean(attr)), keyby = from][, mean]
+  V(g)$mean <- mean 
+})
+```
+
+Timings:
+
+```{r}
+microbenchmark(e1, e2)
+all.equal(V(g)$mean, V(gg)$mean)
+```

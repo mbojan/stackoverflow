@@ -1,0 +1,67 @@
+---
+title: Bipartite to tripartite
+author: "Michał Bojanowski"
+date: `r Sys.Date()`
+---
+
+```{r setup, echo=FALSE, results="hide"}
+library(knitr)
+render_markdown(strict=TRUE)
+```
+
+Cook-up some data...
+
+```{r}
+library(igraph)
+set.seed(666)
+# herbivore-plant
+m_hp <- matrix( rbinom(12, 10, p=0.2), 4, 3)
+dimnames(m_hp) <- list(
+  consuming=paste0("h", seq(1, nrow(m_hp))),
+  consumed=paste0("p", seq(1, ncol(m_hp)))
+)
+# carnivore-herbivore
+m_ch <- matrix( rbinom(20, 10, p=0.2), 5, 4)
+dimnames(m_ch) <- list(
+  consuming=paste0("c", seq(1, nrow(m_ch))),
+  consumed=paste0("h", seq(1, ncol(m_ch)))
+)
+```
+
+... so it looks like yours (I presume):
+
+
+```{r}
+m_hp
+m_ch
+```
+
+Now turn them into igraph objects via edgelists
+
+```{r}
+el_hp <- as.data.frame(as.table(m_hp), stringsAsFactors = FALSE)
+el_ch <- as.data.frame(as.table(m_ch), stringsAsFactors = FALSE)
+el <- rbind(el_hp, el_ch)
+g <- graph.data.frame( el[el$Freq != 0 , ]  )
+V(g)$type <- substr(V(g)$name, 1, 1)
+```
+
+Adjacency matrix of joint network:
+
+```{r}
+get.adjacency(g, sparse=FALSE, attr="Freq")
+```
+
+Graphically
+
+```{r}
+t <- match(V(g)$type, c("p", "h", "c") )
+plot(g, vertex.color=t )
+```
+
+or even
+
+```{r}
+l <- layout_with_fr(g, miny=t, maxy=t  )
+plot(g, vertex.color=t, layout=l, edge.width=E(g)$Freq)
+```
